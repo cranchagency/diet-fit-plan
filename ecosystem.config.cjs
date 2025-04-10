@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
-    name: 'foodplan',
-    script: 'server.js',
+    name: 'dietfit',
+    script: 'dist/server.js',
     instances: 1,
     autorestart: true,
     watch: false,
