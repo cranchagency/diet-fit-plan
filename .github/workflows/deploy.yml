@@ -32,13 +32,13 @@ jobs:
           VITE_UNISENDER_API_KEY: ${{ secrets.VITE_UNISENDER_API_KEY }}
           VITE_SENDER_EMAIL: ${{ secrets.VITE_SENDER_EMAIL }}
           
-      - name: Deploy to Production
+      - name: Deploy Files
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*"
+          source: "dist/*,ecosystem.config.js"
           target: "/var/www/dietfit-plan.ru"
           strip_components: 1
           
