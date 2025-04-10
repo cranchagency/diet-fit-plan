@@ -38,7 +38,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*,ecosystem.config.js"
+          source: "{dist/**,ecosystem.config.js}"
           target: "/var/www/dietfit-plan.ru"
           strip_components: 1
           
