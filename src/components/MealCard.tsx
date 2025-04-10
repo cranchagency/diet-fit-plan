@@ -1,9 +1,11 @@
+import React from 'react';
+
 interface MealCardProps {
-   title: string;
-   calories: string;
-   time: string;
-   macros: string;
-   image: string;
+  title: string;
+  calories: string;
+  time: string;
+  macros: string;
+  image: string;
 }
 
 const MealCard: React.FC<MealCardProps> = ({
@@ -16,7 +18,7 @@ const MealCard: React.FC<MealCardProps> = ({
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="aspect-video relative">
-        <Image src={image} alt={title} fill className="object-cover" />
+        <img src={image} alt={title} className="w-full h-full object-cover" />
       </div>
       <div className="p-4">
         <h4 className="font-semibold text-gray-900 mb-2">{title}</h4>
@@ -29,3 +31,5 @@ const MealCard: React.FC<MealCardProps> = ({
     </div>
   );
 };
+
+export default MealCard;
