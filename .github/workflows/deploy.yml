@@ -50,4 +50,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/dietfit-plan.ru
-            pm2 restart ecosystem.config.js
+            /usr/local/bin/pm2 restart ecosystem.config.js
