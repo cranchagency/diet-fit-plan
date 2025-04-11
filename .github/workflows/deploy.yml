@@ -31,7 +31,13 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_UNISENDER_API_KEY: ${{ secrets.VITE_UNISENDER_API_KEY }}
           VITE_SENDER_EMAIL: ${{ secrets.VITE_SENDER_EMAIL }}
-
+          CLOUDPAYMENTS_PUBLIC_ID: ${{ secrets.CLOUDPAYMENTS_PUBLIC_ID }}
+          CLOUDPAYMENTS_API_SECRET: ${{ secrets.CLOUDPAYMENTS_API_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          
       - name: Build server
         run: npm run build-server
           
