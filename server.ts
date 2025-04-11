@@ -37,6 +37,37 @@ app.use(express.static('dist'));
 const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
 
+async function validatePdfContent(content: string): Promise<boolean> {
+  try {
+    const buffer = Buffer.from(content, 'base64');
+    return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
+  } catch (error) {
+    return false;
+  }
+}
+
+async function sendEmailWithRetry(params: any, retryCount = 0): Promise<any> {
+  try {
+    const response = await axios.post(`${UNISENDER_API_URL}/sendEmail`, {
+      api_key: process.env.UNISENDER_API_KEY,
+      format: 'json',
+      ...params
+    });
+    
+    if (response.data.error) {
+      throw new Error(response.data.error);
+    }
+    
+    return response.data.result;
+  } catch (error) {
+    if (retryCount < MAX_RETRIES) {
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return sendEmailWithRetry(params, retryCount + 1);
+    }
+    throw error;
+  }
+}
+
 async function sendEmail(to: string, subject: string, text: string, html: string) {
   try {
     await transporter.sendMail({
