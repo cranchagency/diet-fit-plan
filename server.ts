@@ -33,10 +33,12 @@ const transporter = nodemailer.createTransport({
 app.use(cors());
 app.use(express.json());
 app.use(express.static('dist'));
+app.use(express.urlencoded({ extended: true })); // Добавляем поддержку form-urlencoded
 
 const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
 
+// Функция для валидации PDF контента
 async function validatePdfContent(content: string): Promise<boolean> {
   try {
     const buffer = Buffer.from(content, 'base64');
@@ -46,6 +48,7 @@ async function validatePdfContent(content: string): Promise<boolean> {
   }
 }
 
+// Функция для отправки email с повторными попытками
 async function sendEmailWithRetry(params: any, retryCount = 0): Promise<any> {
   try {
     const response = await axios.post(`${UNISENDER_API_URL}/sendEmail`, {
@@ -145,9 +148,12 @@ async function disableCloudPaymentsSubscription(subscriptionId: string) {
 // Initial payment webhook
 app.post('/api/payment-success', async (req, res) => {
   try {
+    logger.info('Received payment success webhook', { body: req.body });
+    
     const { Status, Token, AccountId, Email } = req.body;
 
     if (Status !== 'Completed') {
+      logger.info('Payment not completed', { status: Status });
       return res.json({ success: false });
     }
 
@@ -163,6 +169,7 @@ app.post('/api/payment-success', async (req, res) => {
       });
 
     if (dbError) {
+      logger.error('Database error', { error: dbError });
       throw dbError;
     }
 
@@ -183,6 +190,7 @@ app.post('/api/payment-success', async (req, res) => {
       `
     );
 
+    logger.info('Payment success processed successfully', { email: Email });
     res.json({ success: true });
   } catch (error) {
     logger.error('Error processing payment success', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -193,9 +201,12 @@ app.post('/api/payment-success', async (req, res) => {
 // Recurring payment webhook
 app.post('/api/payment-recurrent', async (req, res) => {
   try {
+    logger.info('Received recurring payment webhook', { body: req.body });
+    
     const { Status, AccountId } = req.body;
 
     if (Status !== 'Completed') {
+      logger.info('Recurring payment not completed', { status: Status });
       return res.json({ success: false });
     }
 
@@ -207,10 +218,15 @@ app.post('/api/payment-recurrent', async (req, res) => {
       .single();
 
     if (dbError || !subscription) {
+      logger.error('Database error or subscription not found', { error: dbError });
       throw dbError || new Error('Subscription not found');
     }
 
     if (!subscription.subscriptionActive || subscription.currentWeek > 12) {
+      logger.info('Subscription inactive or completed', { 
+        active: subscription.subscriptionActive, 
+        week: subscription.currentWeek 
+      });
       return res.json({ success: false });
     }
 
@@ -241,12 +257,15 @@ app.post('/api/payment-recurrent', async (req, res) => {
         .eq('id', subscription.id);
 
       await disableCloudPaymentsSubscription(subscription.id);
+      logger.info('Subscription completed and disabled', { id: subscription.id });
     } else {
       // Update current week
       await supabase
         .from('subscriptions')
         .update({ currentWeek: newWeek })
         .eq('id', subscription.id);
+      
+      logger.info('Subscription week updated', { id: subscription.id, newWeek });
     }
 
     res.json({ success: true });
@@ -312,7 +331,13 @@ app.post('/api/send-email', async (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  logger.info(`Server started on port ${port}`);
 });
