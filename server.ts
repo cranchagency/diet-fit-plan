@@ -3,8 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
-import { isEmail } from './src/utils/validation';
-import { logger } from './src/utils/logger';
+import { isEmail } from './src/utils/validation.js';
+import { logger } from './src/utils/logger.js';
 import axios from 'axios';
 
 dotenv.config();
@@ -33,23 +33,23 @@ const transporter = nodemailer.createTransport({
 app.use(cors());
 app.use(express.json());
 app.use(express.static('dist'));
-app.use(express.urlencoded({ extended: true })); // Добавляем поддержку form-urlencoded
+app.use(express.urlencoded({ extended: true }));
 
 const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
 
 // Функция для валидации PDF контента
-async function validatePdfContent(content: string): Promise<boolean> {
+const validatePdfContent = async (content: string): Promise<boolean> => {
   try {
     const buffer = Buffer.from(content, 'base64');
     return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
   } catch (error) {
     return false;
   }
-}
+};
 
 // Функция для отправки email с повторными попытками
-async function sendEmailWithRetry(params: any, retryCount = 0): Promise<any> {
+const sendEmailWithRetry = async (params: any, retryCount = 0): Promise<any> => {
   try {
     const response = await axios.post(`${UNISENDER_API_URL}/sendEmail`, {
       api_key: process.env.UNISENDER_API_KEY,
@@ -69,9 +69,9 @@ async function sendEmailWithRetry(params: any, retryCount = 0): Promise<any> {
     }
     throw error;
   }
-}
+};
 
-async function sendEmail(to: string, subject: string, text: string, html: string) {
+const sendEmail = async (to: string, subject: string, text: string, html: string) => {
   try {
     await transporter.sendMail({
       from: '"FoodPlan" <your@dietfit-plan.ru>',
@@ -85,9 +85,9 @@ async function sendEmail(to: string, subject: string, text: string, html: string
     logger.error('Error sending email', { error: error instanceof Error ? error.message : 'Unknown error' });
     throw error;
   }
-}
+};
 
-async function createCloudPaymentsSubscription(token: string, accountId: string) {
+const createCloudPaymentsSubscription = async (token: string, accountId: string) => {
   try {
     const startDate = new Date();
     startDate.setHours(startDate.getHours() + 24);
@@ -120,9 +120,9 @@ async function createCloudPaymentsSubscription(token: string, accountId: string)
     logger.error('Error creating subscription', { error: error instanceof Error ? error.message : 'Unknown error' });
     throw error;
   }
-}
+};
 
-async function disableCloudPaymentsSubscription(subscriptionId: string) {
+const disableCloudPaymentsSubscription = async (subscriptionId: string) => {
   try {
     const response = await axios.post(
       `${CLOUDPAYMENTS_API_URL}/subscriptions/disable`,
@@ -143,7 +143,7 @@ async function disableCloudPaymentsSubscription(subscriptionId: string) {
     logger.error('Error disabling subscription', { error: error instanceof Error ? error.message : 'Unknown error' });
     throw error;
   }
-}
+};
 
 // Initial payment webhook
 app.post('/api/payment-success', async (req, res) => {
