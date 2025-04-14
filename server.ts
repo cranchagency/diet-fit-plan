@@ -155,22 +155,44 @@ app.post('/api/payment-success', async (req, res) => {
   try {
     logger.info('Received payment success webhook', { body: req.body });
     
-    const { Status, Token, AccountId, Email } = req.body;
+    // Парсим данные из формы
+    const {
+      TransactionId,
+      Status,
+      CardFirstSix,
+      CardLastFour,
+      CardType,
+      Email,
+      AccountId,
+      TestMode,
+      Data
+    } = req.body;
 
+    // Проверяем статус
     if (Status !== 'Completed') {
       logger.info('Payment not completed', { status: Status });
-      return res.json({ success: false });
+      return res.json({ success: false, message: 'Payment not completed' });
     }
 
-    // Save subscription to database
+    // Парсим дополнительные данные
+    let subscriptionData;
+    try {
+      subscriptionData = typeof Data === 'string' ? JSON.parse(Data) : Data;
+    } catch (error) {
+      logger.error('Error parsing Data field', { error });
+      subscriptionData = Data;
+    }
+
+    // Сохраняем информацию о подписке в базу
     const { error: dbError } = await supabase
       .from('subscriptions')
       .insert({
         email: Email,
-        accountId: AccountId,
-        token: Token,
+        accountId: AccountId || TransactionId, // Используем TransactionId как запасной вариант
+        token: `${CardType}:${CardFirstSix}:${CardLastFour}`, // Сохраняем информацию о карте
         currentWeek: 1,
-        subscriptionActive: true
+        subscriptionActive: true,
+        testMode: TestMode === '1' // Сохраняем информацию о тестовом режиме
       });
 
     if (dbError) {
@@ -178,10 +200,15 @@ app.post('/api/payment-success', async (req, res) => {
       throw dbError;
     }
 
-    // Create CloudPayments subscription
-    await createCloudPaymentsSubscription(Token, AccountId);
+    // Создаем подписку в CloudPayments только если это не тестовый режим
+    if (TestMode !== '1') {
+      await createCloudPaymentsSubscription(
+        `${CardType}:${CardFirstSix}:${CardLastFour}`,
+        AccountId || TransactionId
+      );
+    }
 
-    // Send welcome email
+    // Отправляем письмо
     await sendEmail(
       Email,
       'Ваш однодневный план питания',
