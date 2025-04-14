@@ -6,6 +6,10 @@ import nodemailer from 'nodemailer';
 import { isEmail } from './src/utils/validation.js';
 import { logger } from './src/utils/logger.js';
 import axios from 'axios';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 dotenv.config();
 
@@ -30,10 +34,11 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('dist'));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static('dist'));
 
 const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
@@ -334,6 +339,11 @@ app.post('/api/send-email', async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Catch-all route for SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist/index.html'));
 });
 
 const port = process.env.PORT || 3000;
