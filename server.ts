@@ -44,15 +44,15 @@ const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
 
 // Функция для валидации PDF контента
-// const validatePdfContent = async (content: string): Promise<boolean> => {
-//   if (!content) return false;
-//   try {
-//     const buffer = Buffer.from(content, 'base64');
-//     return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
-//   } catch (error) {
-//     return false;
-//   }
-// };
+const validatePdfContent = async (content: string): Promise<boolean> => {
+  if (!content) return false;
+  try {
+    const buffer = Buffer.from(content, 'base64');
+    return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
+  } catch (error) {
+    return false;
+  }
+};
 
 // Функция для отправки email с повторными попытками
 const sendEmailWithRetry = async (params: any, retryCount = 0): Promise<any> => {
@@ -189,10 +189,10 @@ app.post('/api/payment-success', async (req, res) => {
       .from('subscriptions')
       .insert({
         email: Email,
-        account_id: AccountId || TransactionId, // Используем TransactionId как запасной вариант
+        accountid: AccountId || TransactionId, // Используем TransactionId как запасной вариант
         token: `${CardType}:${CardFirstSix}:${CardLastFour}`, // Сохраняем информацию о карте
-        current_week: 1,
-        subscription_active: true,
+        currentweek: 1,
+        subscriptionactive: true,
         test_mode: TestMode === '1' // Сохраняем информацию о тестовом режиме
       });
 
@@ -247,7 +247,7 @@ app.post('/api/payment-recurrent', async (req, res) => {
     const { data: subscription, error: dbError } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('account_id', AccountId)
+      .eq('accountid', AccountId)
       .single();
 
     if (dbError || !subscription) {
@@ -255,10 +255,10 @@ app.post('/api/payment-recurrent', async (req, res) => {
       throw dbError || new Error('Subscription not found');
     }
 
-    if (!subscription.subscription_active || subscription.current_week > 12) {
+    if (!subscription.subscriptionactive || subscription.currentweek > 12) {
       logger.info('Subscription inactive or completed', { 
-        active: subscription.subscription_active, 
-        week: subscription.current_week 
+        active: subscription.subscriptionactive, 
+        week: subscription.currentweek 
       });
       return res.json({ success: false });
     }
@@ -266,26 +266,26 @@ app.post('/api/payment-recurrent', async (req, res) => {
     // Send weekly plan email
     await sendEmail(
       subscription.email,
-      `Ваш план питания – неделя №${subscription.current_week}`,
-      `Спасибо за продление! Вот ваш рацион на эту неделю: https://dietfit-plan.ru/pdfs/week${subscription.current_week}.pdf`,
+      `Ваш план питания – неделя №${subscription.currentweek}`,
+      `Спасибо за продление! Вот ваш рацион на эту неделю: https://dietfit-plan.ru/pdfs/week${subscription.currentweek}.pdf`,
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #22c55e;">Спасибо за продление!</h2>
           <p>Вот ваш рацион на эту неделю:</p>
-          <p><a href="https://dietfit-plan.ru/pdfs/week${subscription.current_week}.pdf" style="color: #22c55e;">Скачать план питания</a></p>
+          <p><a href="https://dietfit-plan.ru/pdfs/week${subscription.currentweek}.pdf" style="color: #22c55e;">Скачать план питания</a></p>
         </div>
       `
     );
 
     // Update subscription status
-    const newWeek = subscription.current_week + 1;
+    const newWeek = subscription.currentweek + 1;
     if (newWeek > 12) {
       // Disable subscription if completed all weeks
       await supabase
         .from('subscriptions')
         .update({
-          current_week: newWeek,
-          subscription_active: false
+          currentweek: newWeek,
+          subscriptionactive: false
         })
         .eq('id', subscription.id);
 
@@ -295,7 +295,7 @@ app.post('/api/payment-recurrent', async (req, res) => {
       // Update current week
       await supabase
         .from('subscriptions')
-        .update({ current_week: newWeek })
+        .update({ currentweek: newWeek })
         .eq('id', subscription.id);
       
       logger.info('Subscription week updated', { id: subscription.id, newWeek });
