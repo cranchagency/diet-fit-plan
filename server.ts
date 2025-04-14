@@ -30,7 +30,7 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: 'your@dietfit-plan.ru',
-    pass: 'uoqmizgtbcaubzqd'
+    pass: 'qogzmhdnvouytljp'
   }
 });
 
@@ -40,42 +40,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('dist'));
 
-const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
-
-// Функция для валидации PDF контента
-const validatePdfContent = async (content: string): Promise<boolean> => {
-  if (!content) return false;
-  try {
-    const buffer = Buffer.from(content, 'base64');
-    return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
-  } catch (error) {
-    return false;
-  }
-};
-
-// Функция для отправки email с повторными попытками
-const sendEmailWithRetry = async (params: any, retryCount = 0): Promise<any> => {
-  try {
-    const response = await axios.post(`${UNISENDER_API_URL}/sendEmail`, {
-      api_key: process.env.UNISENDER_API_KEY,
-      format: 'json',
-      ...params
-    });
-    
-    if (response.data.error) {
-      throw new Error(response.data.error);
-    }
-    
-    return response.data.result;
-  } catch (error) {
-    if (retryCount < MAX_RETRIES) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      return sendEmailWithRetry(params, retryCount + 1);
-    }
-    throw error;
-  }
-};
 
 const sendEmail = async (to: string, subject: string, text: string, html: string) => {
   try {
@@ -308,7 +273,7 @@ app.post('/api/payment-recurrent', async (req, res) => {
   }
 });
 
-// Original email sending endpoint
+// Email sending endpoint
 app.post('/api/send-email', async (req, res) => {
   try {
     const { email, userName } = req.body;
@@ -318,18 +283,11 @@ app.post('/api/send-email', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid email format' });
     }
 
-    if (!process.env.UNISENDER_API_KEY) {
-      logger.error('Unisender API key is not configured');
-      throw new Error('Unisender API key is not configured');
-    }
-
-    const result = await sendEmailWithRetry({
+    await sendEmail(
       email,
-      sender_name: 'FoodPlan',
-      sender_email: process.env.SENDER_EMAIL || 'no-reply@foodplan.ru',
-      subject: 'Ваш персональный план питания',
-      body: `Здравствуйте${userName ? `, ${userName}` : ''}!\n\nСпасибо за заказ персонального плана питания.\n\nВо вложении вы найдете ваш индивидуальный план.\n\nС уважением,\nКоманда FoodPlan`,
-      html_body: `
+      'Ваш персональный план питания',
+      `Здравствуйте${userName ? `, ${userName}` : ''}!\n\nСпасибо за заказ персонального плана питания.\n\nВо вложении вы найдете ваш индивидуальный план.\n\nС уважением,\nКоманда FoodPlan`,
+      `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #22c55e;">Здравствуйте${userName ? `, ${userName}` : ''}!</h2>
           <p>Спасибо за заказ персонального плана питания.</p>
@@ -337,10 +295,10 @@ app.post('/api/send-email', async (req, res) => {
           <p style="margin-top: 24px;">С уважением,<br>Команда FoodPlan</p>
         </div>
       `
-    });
+    );
 
     logger.info('Email sent successfully', { email });
-    res.json({ success: true, result });
+    res.json({ success: true });
   } catch (error) {
     logger.error('Error sending email', { error: error instanceof Error ? error.message : 'Unknown error' });
     res.status(500).json({ 
