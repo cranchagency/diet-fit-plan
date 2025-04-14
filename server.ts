@@ -44,14 +44,15 @@ const UNISENDER_API_URL = 'https://api.unisender.com/ru/api';
 const CLOUDPAYMENTS_API_URL = 'https://api.cloudpayments.ru';
 
 // Функция для валидации PDF контента
-const validatePdfContent = async (content: string): Promise<boolean> => {
-  try {
-    const buffer = Buffer.from(content, 'base64');
-    return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
-  } catch (error) {
-    return false;
-  }
-};
+// const validatePdfContent = async (content: string): Promise<boolean> => {
+//   if (!content) return false;
+//   try {
+//     const buffer = Buffer.from(content, 'base64');
+//     return buffer.length > 0 && buffer.toString('ascii').startsWith('%PDF');
+//   } catch (error) {
+//     return false;
+//   }
+// };
 
 // Функция для отправки email с повторными попытками
 const sendEmailWithRetry = async (params: any, retryCount = 0): Promise<any> => {
@@ -188,11 +189,11 @@ app.post('/api/payment-success', async (req, res) => {
       .from('subscriptions')
       .insert({
         email: Email,
-        accountId: AccountId || TransactionId, // Используем TransactionId как запасной вариант
+        account_id: AccountId || TransactionId, // Используем TransactionId как запасной вариант
         token: `${CardType}:${CardFirstSix}:${CardLastFour}`, // Сохраняем информацию о карте
-        currentWeek: 1,
-        subscriptionActive: true,
-        testMode: TestMode === '1' // Сохраняем информацию о тестовом режиме
+        current_week: 1,
+        subscription_active: true,
+        test_mode: TestMode === '1' // Сохраняем информацию о тестовом режиме
       });
 
     if (dbError) {
@@ -246,7 +247,7 @@ app.post('/api/payment-recurrent', async (req, res) => {
     const { data: subscription, error: dbError } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('accountId', AccountId)
+      .eq('account_id', AccountId)
       .single();
 
     if (dbError || !subscription) {
@@ -254,10 +255,10 @@ app.post('/api/payment-recurrent', async (req, res) => {
       throw dbError || new Error('Subscription not found');
     }
 
-    if (!subscription.subscriptionActive || subscription.currentWeek > 12) {
+    if (!subscription.subscription_active || subscription.current_week > 12) {
       logger.info('Subscription inactive or completed', { 
-        active: subscription.subscriptionActive, 
-        week: subscription.currentWeek 
+        active: subscription.subscription_active, 
+        week: subscription.current_week 
       });
       return res.json({ success: false });
     }
@@ -265,26 +266,26 @@ app.post('/api/payment-recurrent', async (req, res) => {
     // Send weekly plan email
     await sendEmail(
       subscription.email,
-      `Ваш план питания – неделя №${subscription.currentWeek}`,
-      `Спасибо за продление! Вот ваш рацион на эту неделю: https://dietfit-plan.ru/pdfs/week${subscription.currentWeek}.pdf`,
+      `Ваш план питания – неделя №${subscription.current_week}`,
+      `Спасибо за продление! Вот ваш рацион на эту неделю: https://dietfit-plan.ru/pdfs/week${subscription.current_week}.pdf`,
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #22c55e;">Спасибо за продление!</h2>
           <p>Вот ваш рацион на эту неделю:</p>
-          <p><a href="https://dietfit-plan.ru/pdfs/week${subscription.currentWeek}.pdf" style="color: #22c55e;">Скачать план питания</a></p>
+          <p><a href="https://dietfit-plan.ru/pdfs/week${subscription.current_week}.pdf" style="color: #22c55e;">Скачать план питания</a></p>
         </div>
       `
     );
 
     // Update subscription status
-    const newWeek = subscription.currentWeek + 1;
+    const newWeek = subscription.current_week + 1;
     if (newWeek > 12) {
       // Disable subscription if completed all weeks
       await supabase
         .from('subscriptions')
         .update({
-          currentWeek: newWeek,
-          subscriptionActive: false
+          current_week: newWeek,
+          subscription_active: false
         })
         .eq('id', subscription.id);
 
@@ -294,7 +295,7 @@ app.post('/api/payment-recurrent', async (req, res) => {
       // Update current week
       await supabase
         .from('subscriptions')
-        .update({ currentWeek: newWeek })
+        .update({ current_week: newWeek })
         .eq('id', subscription.id);
       
       logger.info('Subscription week updated', { id: subscription.id, newWeek });
@@ -322,17 +323,6 @@ app.post('/api/send-email', async (req, res) => {
       throw new Error('Unisender API key is not configured');
     }
 
-    if (!process.env.PDF_CONTENT) {
-      logger.error('PDF content is not configured');
-      throw new Error('PDF content is not configured');
-    }
-
-    const isPdfValid = await validatePdfContent(process.env.PDF_CONTENT);
-    if (!isPdfValid) {
-      logger.error('Invalid PDF content format');
-      throw new Error('Invalid PDF content format');
-    }
-
     const result = await sendEmailWithRetry({
       email,
       sender_name: 'FoodPlan',
@@ -346,10 +336,7 @@ app.post('/api/send-email', async (req, res) => {
           <p>Во вложении вы найдете ваш индивидуальный план.</p>
           <p style="margin-top: 24px;">С уважением,<br>Команда FoodPlan</p>
         </div>
-      `,
-      attachments_binary: {
-        'food-plan.pdf': process.env.PDF_CONTENT
-      }
+      `
     });
 
     logger.info('Email sent successfully', { email });
